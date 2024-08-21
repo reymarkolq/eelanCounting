@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Button } from 'react-native';
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation }: any, any: any) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Eel Detector</Text>
