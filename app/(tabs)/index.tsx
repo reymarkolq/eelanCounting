@@ -2,10 +2,13 @@ import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native'; // Import this to use navigation
+import { NavigationProp, useNavigation } from '@react-navigation/native'; // Import this to use navigation
+import { RootStackParamList } from '@/components/navigation/types'; // Ensure the import path is correct
+
+type HomeScreenNavigationProp = NavigationProp<RootStackParamList, 'camera'>;
 
 export default function HomeScreen() {
-  const navigation = useNavigation(); // Hook to use navigation
+  const navigation = useNavigation<HomeScreenNavigationProp>(); // Hook to use navigation
 
   return (
     <ThemedView style={styles.container}>
@@ -63,7 +66,7 @@ export default function HomeScreen() {
           resizeMode='contain'
         />
         </View>
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('camera')}>
           <Icon name="camera-outline" size={24} color="#FFFFFF" />
           <ThemedText style={styles.buttonText}>Take a Picture</ThemedText>
         </TouchableOpacity>
