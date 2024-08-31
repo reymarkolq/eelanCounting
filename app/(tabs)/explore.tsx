@@ -1,13 +1,14 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/components/navigation/types';
+import DiseaseDetailScreen from '@/app/screens/DiseaseDetailScreen';
 
-type ExploreScreenNavigationProp = NavigationProp<RootStackParamList, 'Explore'>;
+type ExploreScreenNavigationProp = NavigationProp<RootStackParamList, 'explore'>;
 
 export default function ExploreScreen() {
   const navigation = useNavigation<ExploreScreenNavigationProp >();
 
-  const DiseaseDetail = {
+  const DiseaseDetailScreen = {
      'Behavior': {
       name: 'Behavioral Issues',
       description: 'Details about Behavioral Issues...',
@@ -28,9 +29,10 @@ export default function ExploreScreen() {
     }
   };
 
-  function handlePress(diseaseType: keyof typeof DiseaseDetail) {
-    console.log('Navigating to DiseaseDetail with:', DiseaseDetail[diseaseType]);
-    navigation.navigate('DiseaseDetail', DiseaseDetail[diseaseType]);
+  function handlePress(diseaseType: keyof typeof DiseaseDetailScreen) {
+    const params = DiseaseDetailScreen[diseaseType];
+    console.log('Navigating to DiseaseDetail with:', DiseaseDetailScreen[diseaseType]);
+    navigation.navigate('DiseaseDetailScreen', DiseaseDetailScreen[diseaseType]);
   }
 
   return (
@@ -43,16 +45,16 @@ export default function ExploreScreen() {
           <Text style={styles.mainButtonSubtitle}>Browse through eel diseases</Text>
         </TouchableOpacity>
         
-        {/* Iterate over disease types */}
-        {Object.keys(DiseaseDetail).map((diseaseType) => (
+         {/* Buttons for options */}
+        {Object.keys(DiseaseDetailScreen).map((key) => (
           <TouchableOpacity 
-            key={diseaseType}
-            style={styles.optionButton} 
-            onPress={() => handlePress(diseaseType as keyof typeof DiseaseDetail)}
+            key={key}
+            style={styles.optionButton}
+            onPress={() => handlePress(key as keyof typeof DiseaseDetailScreen)}
           >
-            <Image style={styles.icon} source={DiseaseDetail[diseaseType as keyof typeof DiseaseDetail].image} />
+            <Image style={styles.icon} source={require('@/assets/images/eel photo.jpg')} />
             <View style={styles.optionTextContainer}>
-              <Text style={styles.optionButtonText}>{DiseaseDetail[diseaseType as keyof typeof DiseaseDetail].name}</Text>
+              <Text style={styles.optionButtonText}>{key}</Text>
               <Text style={styles.optionButtonSubText}>Mango, Apple, Orange</Text>
             </View>
             <Image source={require('@/assets/images/right-arrow_icon.png')} style={styles.arrowIcon} />
