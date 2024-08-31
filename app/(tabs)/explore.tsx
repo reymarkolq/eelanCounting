@@ -1,12 +1,11 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/components/navigation/types';
-import DiseaseDetailScreen from '@/app/screens/DiseaseDetailScreen';
 
-type ExploreScreenNavigationProp = NavigationProp<RootStackParamList, 'explore'>;
+type exploreNavigationProp = NavigationProp<RootStackParamList, 'explore'>;
 
-export default function ExploreScreen() {
-  const navigation = useNavigation<ExploreScreenNavigationProp >();
+export default function explore() {
+  const navigation = useNavigation<exploreNavigationProp >();
 
   const DiseaseDetailScreen = {
      'Behavior': {
@@ -30,7 +29,6 @@ export default function ExploreScreen() {
   };
 
   function handlePress(diseaseType: keyof typeof DiseaseDetailScreen) {
-    const params = DiseaseDetailScreen[diseaseType];
     console.log('Navigating to DiseaseDetail with:', DiseaseDetailScreen[diseaseType]);
     navigation.navigate('DiseaseDetailScreen', DiseaseDetailScreen[diseaseType]);
   }
@@ -45,21 +43,41 @@ export default function ExploreScreen() {
           <Text style={styles.mainButtonSubtitle}>Browse through eel diseases</Text>
         </TouchableOpacity>
         
-         {/* Buttons for options */}
-        {Object.keys(DiseaseDetailScreen).map((key) => (
-          <TouchableOpacity 
-            key={key}
-            style={styles.optionButton}
-            onPress={() => handlePress(key as keyof typeof DiseaseDetailScreen)}
-          >
-            <Image style={styles.icon} source={require('@/assets/images/eel photo.jpg')} />
-            <View style={styles.optionTextContainer}>
-              <Text style={styles.optionButtonText}>{key}</Text>
-              <Text style={styles.optionButtonSubText}>Mango, Apple, Orange</Text>
-            </View>
-            <Image source={require('@/assets/images/right-arrow_icon.png')} style={styles.arrowIcon} />
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity 
+          style={styles.optionButton} 
+          onPress={() => handlePress('Behavior')}
+        >
+          <Image style={styles.icon} source={require('@/assets/images/eel photo.jpg')} />
+          <View style={styles.optionTextContainer}>
+            <Text style={styles.optionButtonText}>Behavior</Text>
+            <Text style={styles.optionButtonSubText}>Mango, Apple, Orange</Text>
+          </View>
+          <Image source={require('@/assets/images/right-arrow_icon.png')} style={styles.arrowIcon} />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.optionButton} 
+          onPress={() => handlePress('Skin Lesion')}
+        >
+          <Image style={styles.icon} source={require('@/assets/images/eel photo.jpg')} />
+          <View style={styles.optionTextContainer}>
+            <Text style={styles.optionButtonText}>Skin Lesion</Text>
+            <Text style={styles.optionButtonSubText}>Mango, Apple, Orange</Text>
+          </View>
+          <Image source={require('@/assets/images/right-arrow_icon.png')} style={styles.arrowIcon} />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.optionButton} 
+          onPress={() => handlePress('Color of Eyes')}
+        >
+          <Image style={styles.icon} source={require('@/assets/images/eel photo.jpg')} />
+          <View style={styles.optionTextContainer}>
+            <Text style={styles.optionButtonText}>Color of Eyes</Text>
+            <Text style={styles.optionButtonSubText}>Mango, Apple, Orange</Text>
+          </View>
+          <Image source={require('@/assets/images/right-arrow_icon.png')} style={styles.arrowIcon} />
+        </TouchableOpacity>
       </View>
     </View>
   );

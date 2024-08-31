@@ -3,7 +3,7 @@ export type RootStackParamList = {
     DiseaseDetailScreen: {
         name: string;
         description: string;
-        image: any; 
+        image: any;
         moreInfo: string;
     };
     camera: undefined; // Add this line to inlcude the camera screen
