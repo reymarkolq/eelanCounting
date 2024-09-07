@@ -1,24 +1,28 @@
-import PhotoPreviewSection from '@/components/PhotoPreviewSection';
-import { AntDesign } from '@expo/vector-icons';
-import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
-import * as ImagePicker from 'expo-image-picker';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import * as ImageManipulator from 'expo-image-manipulator'; // to manipulate frames
+import { AntDesign } from '@expo/vector-icons';
 
 export default function Camera() {
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
-  const [photo, setPhoto] = useState<any>(null);
-  const [galleryImage, setGalleryImage] = useState<any>(null);
   const cameraRef = useRef<CameraView | null>(null);
+  const [count, setCount] = useState<number | null>(null);  // Holds the eel count
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      captureFrame(); // Capture frame every second (or chosen interval)
+    }, 1000); // 1 second interval
+
+    return () => clearInterval(interval); // Cleanup the interval when the component is unmounted
+  }, []);
 
   if (!permission) {
-    // Camera permissions are still loading.
     return <View />;
   }
 
   if (!permission.granted) {
-    // Camera permissions are not granted yet.
     return (
       <View style={styles.container}>
         <Text style={{ textAlign: 'center' }}>We need your permission to show the camera</Text>
@@ -27,64 +31,60 @@ export default function Camera() {
     );
   }
 
+  // Toggle front/back camera
   function toggleCameraFacing() {
     setFacing(current => (current === 'back' ? 'front' : 'back'));
   }
 
-  const handleTakePhoto =  async () => {
+  // Capture the frame from the camera and count the eels
+  const captureFrame = async () => {
     if (cameraRef.current) {
-        const options = {
-            quality: 1,
-            base64: true,
-            exif: false,
-        };
-        const takedPhoto = await cameraRef.current.takePictureAsync(options);
+      try {
+        // Capture the frame as an image
+        const photo = await cameraRef.current.takePictureAsync({
+          skipProcessing: true,
+        });
 
-        setPhoto(takedPhoto);
-    }
-  }; 
+        // Optionally compress the image to improve performance
+        const compressedImage = await ImageManipulator.manipulateAsync(
+          photo.uri,
+          [{ resize: { width: 300 } }], // Resize image for faster processing
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
 
-  const handleRetakePhoto = () => {
-    setPhoto(null);
-    setGalleryImage(null);
-  };
+        // Call eel counting function to process the image
+        const eelCount = await countEels(compressedImage.uri);
 
-  const pickImageFromGallery = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 1,
-    });
-    
-    if (!result.canceled) {
-      setGalleryImage(result.assets[0]);
+        // Update the count state with the result
+        setCount(eelCount);
+      } catch (error) {
+        console.error("Error capturing frame:", error);
+      }
     }
   };
 
-  if (photo || galleryImage) {
-    return (
-      <PhotoPreviewSection
-        photo={photo || galleryImage}
-        handleRetakePhoto={handleRetakePhoto}
-      />
-    );
-  }
+  // Example eel counting function (replace with actual implementation)
+  const countEels = async (imageUri: string) => {
+    // This is where you'd implement the logic to count eels from the image
+    // For now, we'll mock this with a random number
+    return Math.floor(Math.random() * 10); // Mock count
+  };
 
   return (
     <View style={styles.container}>
       <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
         <View style={styles.buttonContainer}>
+          {/* Toggle Camera Facing */}
           <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
             <AntDesign name='retweet' size={44} color='black' />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={handleTakePhoto}>
-            <AntDesign name='camera' size={44} color='black' />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={pickImageFromGallery}>
-            <AntDesign name = 'picture' size = {44} color = 'black' />
-          </TouchableOpacity>
         </View>
       </CameraView>
+
+      {/* Display live eel count */}
+      <View style={styles.countContainer}>
+        <Text style={styles.countText}>Eel Count: {count !== null ? count : 'Detecting...'}</Text>
+      </View>
     </View>
   );
 }
@@ -98,23 +98,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   buttonContainer: {
-    flex: 1,
+    position: 'absolute',
+    bottom: 50,
     flexDirection: 'row',
-    backgroundColor: 'transparent',
-    margin: 64,
+    width: '100%',
+    justifyContent: 'space-around',
   },
   button: {
-    flex: 1,
-    alignSelf: 'flex-end',
-    alignItems: 'center',
-    marginHorizontal: 10,
+    padding: 20,
     backgroundColor: 'gray',
     borderRadius: 10,
   },
-  text: {
+  countContainer: {
+    position: 'absolute',
+    top: 50,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  countText: {
     fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
   },
 });
-

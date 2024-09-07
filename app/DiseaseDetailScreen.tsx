@@ -3,6 +3,14 @@ import { View, Text, StyleSheet, Image } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/components/navigation/types';
 
+type RootStackParamList = {
+  DiseaseDetailScreen: {
+    name: string;
+    description: string;
+    image: any;
+    moreInfo: string;
+  };
+};
 
 type DiseaseDetailScreenRouteProp = RouteProp<RootStackParamList, 'DiseaseDetailScreen'>;
 

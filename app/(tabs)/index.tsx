@@ -19,39 +19,27 @@ export default function HomeScreen() {
           style={styles.logo}
           resizeMode='contain'
         />
-        <ThemedText style={styles.title}>Eel Detector</ThemedText>
+        <ThemedText style={styles.title}>EELAN</ThemedText>
       </ThemedView>
 
       {/* Welcome Section */}
       <ThemedView style={styles.welcomeOuterContainer}>
         <ThemedView style={styles.welcomeInnerContainer}>
-           <ThemedText style={styles.welcomeText}>Hi! Welcome to Eel Detector</ThemedText>
+           <ThemedText style={styles.welcomeText}>Hi! Welcome to Eelan App</ThemedText>
         </ThemedView>
-        <ThemedText style={styles.subtitle}>What is Eel Detector?</ThemedText>
+        <ThemedText style={styles.subtitle}>What is Eelan App?</ThemedText>
         <ThemedText style={styles.description}>
-          An eel detector is a system used to track eels in aquatic environments using sensors or
-          imaging technologies, crucial for scientific study and environmental monitoring,
-          assessing eel populations and behavior.
+          Eel Counteing helps track eel populations in real time by capturing images and counting eels automatically.
         </ThemedText>
       </ThemedView>
 
       {/* Action Section */}
       <ThemedView style={styles.actionContainer}>
-        <ThemedText style={styles.subtitle}>Heal your Eel Fish!</ThemedText>
+        <ThemedText style={styles.subtitle}>Count Eels Instantly!</ThemedText>
         <View style={styles.imagesRow}>
           {/* Image Section */}
         <Image
-          source={require('@/assets/images/qr-code-scan_icon.png')}
-          style={styles.icon}
-          resizeMode='contain'
-          />
-          <Image
-          source={require('@/assets/images/right-arrow_icon.png')}
-          style={styles.icon}
-          resizeMode='contain'
-        />
-        <Image
-          source={require('@/assets/images/documents_icon.png')}
+          source={require('@/assets/images/recording-camera.png')}
           style={styles.icon}
           resizeMode='contain'
           />
@@ -64,11 +52,21 @@ export default function HomeScreen() {
           source={require('@/assets/images/eel_icon.png')}
           style={styles.icon}
           resizeMode='contain'
+          />
+          <Image
+          source={require('@/assets/images/right-arrow_icon.png')}
+          style={styles.icon}
+          resizeMode='contain'
+        />
+        <Image
+          source={require('@/assets/images/counter.png')}
+          style={styles.icon}
+          resizeMode='contain'
         />
         </View>
         <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('camera')}>
           <Icon name="camera-outline" size={24} color="#FFFFFF" />
-          <ThemedText style={styles.buttonText}>Take a Picture</ThemedText>
+          <ThemedText style={styles.buttonText}>Count Eels</ThemedText>
         </TouchableOpacity>
       </ThemedView>
     </ThemedView>
