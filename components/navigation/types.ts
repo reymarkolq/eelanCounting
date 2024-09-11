@@ -1,10 +1,8 @@
+// Define your RootStackParamlist
 export type RootStackParamList = {
-    explore: undefined;
-    DiseaseDetailScreen: {
-        name: string;
-        description: string;
-        image: any;
-        moreInfo: string;
+    camera: { gallery?: boolean }; // Allow camera screen to accept an optional "gallery" parameter
+    explore: {
+        photo: { uri: string }; // photo with a URI
+        count: number | null;   // eel count or null
     };
-    camera: undefined; // Add this line to inlcude the camera screen
 };

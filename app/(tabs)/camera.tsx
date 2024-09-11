@@ -1,48 +1,54 @@
 import { useEffect, useRef, useState } from 'react';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
-import { Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import * as ImageManipulator from 'expo-image-manipulator'; // to manipulate frames
+import { Camera } from 'expo-camera';
+import { Button, StyleSheet, Text, TouchableOpacity, View, Dimensions } from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
+import * as ImageManipulator from 'expo-image-manipulator'; // to manipulate frames
+import * as tf from '@tensorflow/tfjs'; // TensorFlow.js
+import * as jpeg from 'jpeg-js'; // to decode jpeg images
+import { Svg, Path } from 'react-native-svg'; // For drawing bounding boxes
+import {GestureResponderEvent } from 'react-native';
 
-export default function Camera() {
-  const [facing, setFacing] = useState<CameraType>('back');
-  const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef<CameraView | null>(null);
+const { width, height } = Dimensions.get('window');
+
+export default function CameraScreen() {
+  const [facing, setFacing] = useState<'front' | 'back'>('back');
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);  // Changed to use boolean for permission
+  const cameraRef = useRef<typeof Camera | null>(null);
   const [count, setCount] = useState<number | null>(null);  // Holds the eel count
+  const [predictions, setPredictions] = useState<any[]>([]); // Holds bounding box predictions
+  const [model, setModel] = useState<tf.GraphModel | null>(null);  // Holds the loaded model
 
+  // Request camera permissions when the component mounts
   useEffect(() => {
-    const interval = setInterval(() => {
-      captureFrame(); // Capture frame every second (or chosen interval)
-    }, 1000); // 1 second interval
-
-    return () => clearInterval(interval); // Cleanup the interval when the component is unmounted
+    (async () => {
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      setHasPermission(status === 'granted');
+    })();
   }, []);
 
-  if (!permission) {
-    return <View />;
-  }
+  // Load the YOLO model when the component is mounted
+  useEffect(() => {
+    const loadModel = async () => {
+      try {
+        // Load the pre-trained YOLOv8 model hosted on your server
+        const model = await tf.loadGraphModel('https://your-model-url/model.json');
+        setModel(model);  // Set the model state
+        console.log('Model loaded successfully');
+      } catch (error) {
+        console.error('Error loading model:', error);
+      }
+    };
 
-  if (!permission.granted) {
-    return (
-      <View style={styles.container}>
-        <Text style={{ textAlign: 'center' }}>We need your permission to show the camera</Text>
-        <Button onPress={requestPermission} title="grant permission" />
-      </View>
-    );
-  }
+    tf.ready().then(loadModel);
+  }, []);
 
-  // Toggle front/back camera
-  function toggleCameraFacing() {
-    setFacing(current => (current === 'back' ? 'front' : 'back'));
-  }
-
-  // Capture the frame from the camera and count the eels
+  // Function to capture frame and process eel counting
   const captureFrame = async () => {
-    if (cameraRef.current) {
+    if (cameraRef.current && model) {
       try {
         // Capture the frame as an image
         const photo = await cameraRef.current.takePictureAsync({
-          skipProcessing: true,
+          skipProcessing: true, // Skip any post-processing for perfromance
         });
 
         // Optionally compress the image to improve performance
@@ -52,39 +58,113 @@ export default function Camera() {
           { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
         );
 
-        // Call eel counting function to process the image
+        // Run eel counting and detection
         const eelCount = await countEels(compressedImage.uri);
+        setCount(eelCount); // Update the eel count state
 
-        // Update the count state with the result
-        setCount(eelCount);
       } catch (error) {
-        console.error("Error capturing frame:", error);
+        console.error('Error capturing frame:', error);
       }
     }
   };
 
-  // Example eel counting function (replace with actual implementation)
+  // Function for eel detection using the YOLO model
   const countEels = async (imageUri: string) => {
-    // This is where you'd implement the logic to count eels from the image
-    // For now, we'll mock this with a random number
-    return Math.floor(Math.random() * 10); // Mock count
+    try {
+      // Preprocess the image for TensorFlow.js
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      const arrayBuffer = await blob.arrayBuffer();
+      const imageData = new Uint8Array(arrayBuffer);
+      const rawImageData = jpeg.decode(imageData, {useTArray: true});
+      const imageTensor = tf.browser.fromPixels(rawImageData);
+
+      // Run the model and get predictions
+      const predictions = await model!.executeAsync(imageTensor) as any[];
+
+      // Process predictions: extract bounding boxes and count eels
+      const eelBoxes = extractBoundingBoxes(predictions);
+      setPredictions(eelBoxes); // Update bounding boxes for rendering
+      return eelBoxes.length; // Return the eel count
+    } catch (error) {
+      console.error('Error detecting eels:', error);
+      return 0;
+    }
+  };
+
+  // Function to extract bounding boxes from model predictions
+  const extractBoundingBoxes = (predictions: any[]) => {
+    const boxes: any[] = [];
+    predictions.forEach((prediction) => {
+      const [x, y, width, height] = prediction.bbox; // Replace with your model's output format
+      boxes.push({ x, y, width, height });
+    });
+    return boxes;
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      captureFrame(); // Capture frame every second (or chosen interval)
+    }, 1000); // 1 second interval
+
+    return () => clearInterval(interval); // Cleanup the interval when the component is unmounted
+  }, [model]);
+
+  if (hasPermission === null) {
+    return <View />;
+  }
+
+  if (hasPermission === false) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ textAlign: 'center' }}>We need your permission to show the camera</Text>
+        <Button title="Grant permission" onPress={() => Camera.requestCameraPermissionsAsync()} />
+      </View>
+    );
+  }
+
+
+  // Toggle front/back camera
+  function toggleCameraFacing() {
+    setFacing(current => (current === 'back' ? 'front' : 'back'));
+  };
+
+  // Function to render bounding boxes over the camera feed
+  const renderBoundingBoxes = () => {
+    return predictions.map((prediction, index) => (
+      <Path
+        key={index}
+        d={`M${prediction.x},${prediction.y} L${prediction.x + prediction.width},${prediction.y} 
+            L${prediction.x + prediction.width},${prediction.y + prediction.height} 
+            L${prediction.x},${prediction.y + prediction.height} Z`}
+        stroke="red"
+        strokeWidth={2}
+      />
+    ));
   };
 
   return (
     <View style={styles.container}>
-      <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
+      {hasPermission && (
+      <Camera style={styles.camera} type={facing} ref={cameraRef}>
         <View style={styles.buttonContainer}>
           {/* Toggle Camera Facing */}
           <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
             <AntDesign name='retweet' size={44} color='black' />
           </TouchableOpacity>
         </View>
-      </CameraView>
 
-      {/* Display live eel count */}
-      <View style={styles.countContainer}>
-        <Text style={styles.countText}>Eel Count: {count !== null ? count : 'Detecting...'}</Text>
-      </View>
+        {/* Render bounding boxes */}
+        <Svg style={styles.canvas}>
+          {predictions && renderBoundingBoxes()}
+        </Svg>
+
+        {/* Display live eel count */}
+        <View style={styles.countContainer}>
+          <Text style={styles.countText}>Eel Count: {count !== null ? count : 'Detecting...'}</Text>
+        </View>
+        </Camera>
+      )}
     </View>
   );
 }
@@ -108,6 +188,13 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: 'gray',
     borderRadius: 10,
+  },
+  canvas: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: width,
+    height: height,
   },
   countContainer: {
     position: 'absolute',

@@ -1,82 +1,55 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { useNavigation, NavigationProp } from '@react-navigation/native';
+import { useState } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AntDesign } from '@expo/vector-icons';
+import { RouteProp, NavigationProp, useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '@/components/navigation/types';
 
-type exploreNavigationProp = NavigationProp<RootStackParamList, 'explore'>;
+type exploreRouteProp = RouteProp<RootStackParamList, 'explore'>;
 
-export default function explore() {
-  const navigation = useNavigation<exploreNavigationProp >();
+type Props = {
+  route: exploreRouteProp;
+};
 
-  const DiseaseDetailScreen = {
-     'Behavior': {
-      name: 'Behavioral Issues',
-      description: 'Details about Behavioral Issues...',
-      image: require('@/assets/images/skin_lesion.png'),
-      moreInfo: 'Behavioral issues can indicate stress or illness in the eel...'
-    },
-    'Skin Lesion': {
-      name: 'Skin Lesion',
-      description: 'Details about Skin Lesion...',
-      image: require('@/assets/images/skin_lesion.png'),
-      moreInfo: 'Skin lessions are abnormal growths or areas of skin that are different from the skin around them...'
-    },
-    'Color of Eyes': {
-      name: 'Color of Eyes',
-      description: 'Details about Eye Color Issues...',
-      image: require('@/assets/images/skin_lesion.png'),
-      moreInfo: 'Changes in eye color can indicate various conditions...'
-    }
+export default function ExploreScreen({ route }: Props) {
+  const { photo, count } = route?.params || {photo: {uri: ''}, count: null};  // Retrieve photo and count from route params
+  const navigation = useNavigation<NavigationProp<RootStackParamList, 'camera'>>();  // Navigation hook
+
+  const handleRetakePhoto = () => {
+    // Navigate back to the Camera screen for retaking the photo
+    navigation.navigate('camera', {});
   };
 
-  function handlePress(diseaseType: keyof typeof DiseaseDetailScreen) {
-    console.log('Navigating to DiseaseDetail with:', DiseaseDetailScreen[diseaseType]);
-    navigation.navigate('DiseaseDetailScreen', DiseaseDetailScreen[diseaseType]);
-  }
+  const pickImageFromGallery = () => {
+    // Navigate back to Camera screen but prompt for gallery image selection
+    navigation.navigate('camera', { gallery: true });
+  };
 
   return (
-     <View style={styles.container}>
+    <View style={styles.container}>
+      {/* Display the captured image */}
+      <Image
+        source={{ uri: photo.uri }}
+        style={styles.imagePreview}
+        resizeMode='contain'
+      />
       
-      {/* Main Content */}
-      <View style={styles.mainContent}>
-        <TouchableOpacity style={styles.mainButton}>
-          <Text style={styles.mainButtonText}>Eel Fish Diseases</Text>
-          <Text style={styles.mainButtonSubtitle}>Browse through eel diseases</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.optionButton} 
-          onPress={() => handlePress('Behavior')}
-        >
-          <Image style={styles.icon} source={require('@/assets/images/eel photo.jpg')} />
-          <View style={styles.optionTextContainer}>
-            <Text style={styles.optionButtonText}>Behavior</Text>
-            <Text style={styles.optionButtonSubText}>Mango, Apple, Orange</Text>
-          </View>
-          <Image source={require('@/assets/images/right-arrow_icon.png')} style={styles.arrowIcon} />
+      {/* Show the Eel Count result */}
+      <View style={styles.resultContainer}>
+        <Text style={styles.resultText}>
+          Eels Counted: {count !== null ? count : 'Calculating...'}
+        </Text>
+      </View>
+
+      {/* Buttons for retaking photo or selecting another image */}
+      <View style={styles.actionContainer}>
+        <TouchableOpacity style={styles.button} onPress={handleRetakePhoto}>
+          <AntDesign name="camera" size={24} color="#FFFFFF" />
+          <Text style={styles.buttonText}>Retake Photo</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.optionButton} 
-          onPress={() => handlePress('Skin Lesion')}
-        >
-          <Image style={styles.icon} source={require('@/assets/images/eel photo.jpg')} />
-          <View style={styles.optionTextContainer}>
-            <Text style={styles.optionButtonText}>Skin Lesion</Text>
-            <Text style={styles.optionButtonSubText}>Mango, Apple, Orange</Text>
-          </View>
-          <Image source={require('@/assets/images/right-arrow_icon.png')} style={styles.arrowIcon} />
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.optionButton} 
-          onPress={() => handlePress('Color of Eyes')}
-        >
-          <Image style={styles.icon} source={require('@/assets/images/eel photo.jpg')} />
-          <View style={styles.optionTextContainer}>
-            <Text style={styles.optionButtonText}>Color of Eyes</Text>
-            <Text style={styles.optionButtonSubText}>Mango, Apple, Orange</Text>
-          </View>
-          <Image source={require('@/assets/images/right-arrow_icon.png')} style={styles.arrowIcon} />
+        <TouchableOpacity style={styles.button} onPress={pickImageFromGallery}>
+          <AntDesign name="picture" size={24} color="#FFFFFF" />
+          <Text style={styles.buttonText}>Pick from Gallery</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -86,58 +59,44 @@ export default function explore() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#008000',
-    justifyContent: 'center',
-  },
-  mainContent: {
-    padding: 16,
+    backgroundColor: '#F5F5F5',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
-  mainButton: {
-    backgroundColor: '#E0E0E0',
-    padding: 40,
-    borderRadius: 8,
-    marginBottom: 16,
-    alignItems: 'center',
-    width: '80%',
+  imagePreview: {
+    width: '100%',
+    height: 300,
+    marginBottom: 20,
+    borderRadius: 12,
   },
-  mainButtonText: {
-    fontSize: 18,
+  resultContainer: {
+    padding: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    elevation: 5,
+    marginBottom: 20,
+  },
+  resultText: {
+    fontSize: 24,
     fontWeight: 'bold',
+    color: '#333333',
   },
-  mainButtonSubtitle: {
-    fontSize: 14,
-    color: '#757575',
+  actionContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
   },
-  optionButton: {
+  button: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
-    padding: 45,
+    backgroundColor: '#008000',
+    padding: 12,
     borderRadius: 8,
-    marginBottom: 16,
-    width: '80%',
   },
-  optionTextContainer: {
-    flexDirection: 'column',
-    marginLeft: 10,
-    flex: 1,
-  },
-  optionButtonText: {
+  buttonText: {
+    marginLeft: 8,
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  optionButtonSubText: {
-    fontSize: 14,
-    color: '#757575',
-  },
-  icon: {
-    width: 50,
-    height: 50,
-  },
-  arrowIcon: {
-    width: 30,
-    height: 30,
+    color: '#FFFFFF',
   },
 });

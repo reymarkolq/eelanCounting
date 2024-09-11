@@ -1,35 +1,44 @@
-import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, TouchableOpacity, View, Pressable } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { NavigationProp, useNavigation } from '@react-navigation/native'; // Import this to use navigation
-import { RootStackParamList } from '@/components/navigation/types'; // Ensure the import path is correct
+import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { RootStackParamList } from '@/components/navigation/types';
+import { useFonts } from 'expo-font';
 
 type HomeScreenNavigationProp = NavigationProp<RootStackParamList, 'camera'>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>(); // Hook to use navigation
 
+  const [fontsLoaded] = useFonts({
+    'VastShadow-Regular': require('@/assets/fonts/VastShadow-Regular.ttf'),
+    'RobotoMono-Regular': require('@/assets/fonts/RobotoMono-Regular.ttf'),
+  });
+
+  if (!fontsLoaded) {
+    return null; // Show a loading screen or nothing until fonts are loaded
+  }
+
   return (
     <ThemedView style={styles.container}>
       {/* Header Section */}
       <ThemedView style={styles.header}>
         <Image
-          source={require('@/assets/images/logo.png')} // Replace with your logo image
+          source={require('@/assets/images/eelan-logo.png')} 
           style={styles.logo}
-          resizeMode='contain'
+          resizeMode="contain"
         />
-        <ThemedText style={styles.title}>EELAN</ThemedText>
       </ThemedView>
 
       {/* Welcome Section */}
       <ThemedView style={styles.welcomeOuterContainer}>
         <ThemedView style={styles.welcomeInnerContainer}>
-           <ThemedText style={styles.welcomeText}>Hi! Welcome to Eelan App</ThemedText>
+          <ThemedText style={styles.welcomeText}>Hi! Welcome to Eelan App</ThemedText>
         </ThemedView>
         <ThemedText style={styles.subtitle}>What is Eelan App?</ThemedText>
         <ThemedText style={styles.description}>
-          Eel Counteing helps track eel populations in real time by capturing images and counting eels automatically.
+          Eel Counting helps track eel populations in real time by capturing images and counting eels automatically.
         </ThemedText>
       </ThemedView>
 
@@ -38,36 +47,44 @@ export default function HomeScreen() {
         <ThemedText style={styles.subtitle}>Count Eels Instantly!</ThemedText>
         <View style={styles.imagesRow}>
           {/* Image Section */}
-        <Image
-          source={require('@/assets/images/recording-camera.png')}
-          style={styles.icon}
-          resizeMode='contain'
+          <Image
+            source={require('@/assets/images/recording-camera.png')}
+            style={styles.icon}
+            resizeMode="contain"
           />
           <Image
-          source={require('@/assets/images/right-arrow_icon.png')}
-          style={styles.icon}
-          resizeMode='contain'
-        />
-        <Image
-          source={require('@/assets/images/eel_icon.png')}
-          style={styles.icon}
-          resizeMode='contain'
+            source={require('@/assets/images/right-arrow_icon.png')}
+            style={styles.icon}
+            resizeMode="contain"
           />
           <Image
-          source={require('@/assets/images/right-arrow_icon.png')}
-          style={styles.icon}
-          resizeMode='contain'
-        />
-        <Image
-          source={require('@/assets/images/counter.png')}
-          style={styles.icon}
-          resizeMode='contain'
-        />
+            source={require('@/assets/images/eel_icon.png')}
+            style={styles.icon}
+            resizeMode="contain"
+          />
+          <Image
+            source={require('@/assets/images/right-arrow_icon.png')}
+            style={styles.icon}
+            resizeMode="contain"
+          />
+          <Image
+            source={require('@/assets/images/counter.png')}
+            style={styles.icon}
+            resizeMode="contain"
+          />
         </View>
-        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('camera')}>
+
+        {/* Pressable Button for better feedback */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.button,
+            { backgroundColor: pressed ? '#006400' : '#008000' }, // Change color when pressed
+          ]}
+          onPress={() => navigation.navigate('camera', {})}
+        >
           <Icon name="camera-outline" size={24} color="#FFFFFF" />
           <ThemedText style={styles.buttonText}>Count Eels</ThemedText>
-        </TouchableOpacity>
+        </Pressable>
       </ThemedView>
     </ThemedView>
   );
@@ -79,21 +96,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#EAF5EA',
   },
   header: {
-    padding: 40,
+    padding: 10,
     alignItems: 'center',
     backgroundColor: '#008000',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
-    elevation: 2,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   logo: {
-    width: 120,
-    height: 120,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'black',
+    width: 200,
+    height: 200,
   },
   welcomeInnerContainer: {
     padding: 20,
@@ -107,23 +123,31 @@ const styles = StyleSheet.create({
     margin: 25,
     borderRadius: 12,
     elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   welcomeText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: 'black',
+    fontSize: 20,
+    fontFamily: 'RobotoMono-Regular',
+    color: '#333',
+    textAlign: 'center',
   },
   subtitle: {
-    marginTop: 15,
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333333',
+    marginTop: 20,
+    fontSize: 20,
+    fontFamily: 'RobotoMono-Regular',  
+    color: '#333',
+    textAlign: 'center',
   },
   description: {
     marginTop: 15,
     fontSize: 16,
-    color: '#555555',
+    fontFamily: 'RobotoMono-Regular', 
+    color: '#555',
     lineHeight: 22,
+    textAlign: 'center',
   },
   actionContainer: {
     padding: 25,
@@ -132,25 +156,29 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#008000',
-    padding: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     borderRadius: 8,
-    marginTop: 10,
+    marginTop: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   buttonText: {
-    marginLeft: 8,
-    fontSize: 16,
+    marginLeft: 10,
+    fontSize: 18,
+    fontFamily: 'RobotoMono-Regular',  
     color: '#FFFFFF',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 16,
-    backgroundColor: '#CCCCCC',
   },
   imagesRow: {
     flexDirection: 'row',
