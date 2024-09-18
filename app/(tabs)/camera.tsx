@@ -6,6 +6,7 @@ import * as ImageManipulator from 'expo-image-manipulator'; // to manipulate fra
 import * as tf from '@tensorflow/tfjs'; // TensorFlow.js
 import * as jpeg from 'jpeg-js'; // to decode jpeg images
 import { Svg, Path } from 'react-native-svg'; // For drawing bounding boxes
+import { fetch } from '@tensorflow/tfjs-react-native'; // Import TensorFlow's fetch for React Native
 import {GestureResponderEvent } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -13,7 +14,7 @@ const { width, height } = Dimensions.get('window');
 export default function CameraScreen() {
   const [facing, setFacing] = useState<'front' | 'back'>('back');
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);  // Changed to use boolean for permission
-  const cameraRef = useRef<typeof Camera | null>(null);
+  const cameraRef = useRef<Camera | null>(null);
   const [count, setCount] = useState<number | null>(null);  // Holds the eel count
   const [predictions, setPredictions] = useState<any[]>([]); // Holds bounding box predictions
   const [model, setModel] = useState<tf.GraphModel | null>(null);  // Holds the loaded model
@@ -21,8 +22,9 @@ export default function CameraScreen() {
   // Request camera permissions when the component mounts
   useEffect(() => {
     (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
+      const { status: cameraStatus} = await Camera.requestCameraPermissionsAsync();
+      const { status: microphoneStatus } = await Camera.requestMicrophonePermissionsAsync();
+      setHasPermission(cameraStatus === 'granted' && microphoneStatus === 'granted');
     })();
   }, []);
 
@@ -36,6 +38,7 @@ export default function CameraScreen() {
         console.log('Model loaded successfully');
       } catch (error) {
         console.error('Error loading model:', error);
+        alert('Failed to load model');
       }
     };
 
@@ -61,7 +64,8 @@ export default function CameraScreen() {
         // Run eel counting and detection
         const eelCount = await countEels(compressedImage.uri);
         setCount(eelCount); // Update the eel count state
-
+        
+        console.log('Photo captured and compressed:', compressedImage);
       } catch (error) {
         console.error('Error capturing frame:', error);
       }
@@ -90,6 +94,14 @@ export default function CameraScreen() {
       console.error('Error detecting eels:', error);
       return 0;
     }
+  };
+
+  // Function to classify whether an eel is active or non-active based on predictions
+  const classifyEel = (prediction: any) => {
+    // Placeholder logic to classify eels as active or non-active
+    // You can replace this with your actual logic
+    // Example: classify as active if width > a threshold, otherwise non-active
+    return prediction.width > 100; // Just an example threshold
   };
 
   // Function to extract bounding boxes from model predictions
@@ -127,26 +139,31 @@ export default function CameraScreen() {
   // Toggle front/back camera
   function toggleCameraFacing() {
     setFacing(current => (current === 'back' ? 'front' : 'back'));
-  };
+  }
 
-  // Function to render bounding boxes over the camera feed
+  // Function to render bounding boxes over the camera feed with colors based on activity
   const renderBoundingBoxes = () => {
-    return predictions.map((prediction, index) => (
-      <Path
-        key={index}
-        d={`M${prediction.x},${prediction.y} L${prediction.x + prediction.width},${prediction.y} 
+    return predictions.map((prediction, index) => {
+      const isActive = prediction.isActive; // Determine if the eel is active
+      const boxColor = isActive ? 'green' : 'red'; // Green for active eels, Red for non-active eels
+    
+      return (
+        <Path
+          key={index}
+          d={`M${prediction.x},${prediction.y} L${prediction.x + prediction.width},${prediction.y} 
             L${prediction.x + prediction.width},${prediction.y + prediction.height} 
             L${prediction.x},${prediction.y + prediction.height} Z`}
-        stroke="red"
-        strokeWidth={2}
-      />
-    ));
+          stroke={boxColor} // Use the dynamic color
+          strokeWidth={2}
+        />
+      );
+    });
   };
 
   return (
     <View style={styles.container}>
       {hasPermission && (
-      <Camera style={styles.camera} type={facing} ref={cameraRef}>
+      <Camera style={styles.camera} type={facing === 'front' ? Camera.Constants.Type.front : Camera.Constants.Type.back} ref={cameraRef}>
         <View style={styles.buttonContainer}>
           {/* Toggle Camera Facing */}
           <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>

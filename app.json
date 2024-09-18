@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "eeldiseasedetector",
-    "slug": "eeldiseasedetector",
+    "name": "eelanCounting",
+    "slug": "eelanCounting",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/eelan.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/images/eelan.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#008000"
     },
     "ios": {
       "supportsTablet": true
