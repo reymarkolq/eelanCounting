@@ -7,14 +7,13 @@ import * as tf from '@tensorflow/tfjs'; // TensorFlow.js
 import * as jpeg from 'jpeg-js'; // to decode jpeg images
 import { Svg, Path } from 'react-native-svg'; // For drawing bounding boxes
 import { fetch } from '@tensorflow/tfjs-react-native'; // Import TensorFlow's fetch for React Native
-import {GestureResponderEvent } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
 export default function CameraScreen() {
   const [facing, setFacing] = useState<'front' | 'back'>('back');
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);  // Changed to use boolean for permission
-  const cameraRef = useRef<Camera | null>(null);
+  const cameraRef = useRef<Camera>(null);
   const [count, setCount] = useState<number | null>(null);  // Holds the eel count
   const [predictions, setPredictions] = useState<any[]>([]); // Holds bounding box predictions
   const [model, setModel] = useState<tf.GraphModel | null>(null);  // Holds the loaded model
@@ -23,8 +22,7 @@ export default function CameraScreen() {
   useEffect(() => {
     (async () => {
       const { status: cameraStatus} = await Camera.requestCameraPermissionsAsync();
-      const { status: microphoneStatus } = await Camera.requestMicrophonePermissionsAsync();
-      setHasPermission(cameraStatus === 'granted' && microphoneStatus === 'granted');
+      setHasPermission(cameraStatus === 'granted');
     })();
   }, []);
 
@@ -98,10 +96,17 @@ export default function CameraScreen() {
 
   // Function to classify whether an eel is active or non-active based on predictions
   const classifyEel = (prediction: any) => {
-    // Placeholder logic to classify eels as active or non-active
-    // You can replace this with your actual logic
-    // Example: classify as active if width > a threshold, otherwise non-active
-    return prediction.width > 100; // Just an example threshold
+    const { width, height, confidence } = prediction;
+
+    // thressholds for classifying an eel as active or inactive
+    const activeThresholdWidth = 100;
+    const activeThresholdHeight = 50;
+    const confidenceThreshold = 0.6;
+
+    // Logic: classify as active if both width and height exceed thresholds and confidence is high
+    const isActive = (width > activeThresholdWidth && height > activeThresholdHeight && confidence > confidenceThreshold);
+
+    return isActive ? 'active' : 'inactive'; // Return a string for 'active' or 'inactive' status
   };
 
   // Function to extract bounding boxes from model predictions
@@ -109,7 +114,8 @@ export default function CameraScreen() {
     const boxes: any[] = [];
     predictions.forEach((prediction) => {
       const [x, y, width, height] = prediction.bbox; // Replace with your model's output format
-      boxes.push({ x, y, width, height });
+       const isActive = classifyEel(prediction);  // Add this line to classify eels
+      boxes.push({ x, y, width, height, isActive });
     });
     return boxes;
   };
