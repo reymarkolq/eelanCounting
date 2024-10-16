@@ -6,7 +6,11 @@
       "@/*": [
         "./*"
       ]
-    }
+    }, 
+    "typeRoots": [
+      "./types",               // Add this to include custom type declarations
+      "./node_modules/@types"
+    ]
   },
   "include": [
     "**/*.ts",
