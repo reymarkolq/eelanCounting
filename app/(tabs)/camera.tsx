@@ -4,7 +4,6 @@ import { Button, StyleSheet, Text, View, Dimensions } from 'react-native';
 import { Svg, Path, Line, Text as SvgText, Rect } from 'react-native-svg';
 import TFLite from 'react-native-tflite'; 
 import * as jpeg from 'jpeg-js';
-import { Asset } from 'expo-asset';
 import ImageResizer from 'react-native-image-resizer';  // Import ImageResizer
 
 const { width, height } = Dimensions.get('window');
@@ -21,36 +20,26 @@ export default function App() {
   const [eelOutCount, setEelOutCount] = useState(0); // Counter for "out"
   const [previousPositions, setPreviousPositions] = useState<any[]>([]); // Store previous positions of eels for movement tracking
 
-  // Load the TFLite model when the component is mounted
+   // Load the TFLite model when the component is mounted 
   useEffect(() => {
-    const loadModel = async () => {
-      try {
-        console.log('Initializing TFLite...');
-        const modelAsset = Asset.fromModule(require('../assets/models/yolov8m_float16.tflite')); // Correct path to the model
-        await modelAsset.downloadAsync();  // Download the model file to the device
-        console.log('Model path:', modelAsset.localUri);
-
-        if (TFLite && TFLite.loadModel) {
-          TFLite.loadModel({
-            model: modelAsset.localUri, // Use the localUri to load the model
-          }, (err: any, res: any) => {
-            if (err) {
-              console.error('Error loading model:', err);
-              alert('Failed to load model');
-            } else {
-              console.log('Model loaded successfully');
-              setModel(res);
-            }
-          });
-        } else {
-          console.error('TFLite not initialized or loadModel not found.');
-          alert('TFLite module is not initialized.');
-        }
-      } catch (error) {
-        console.error('Error loading TFLite model:', error);
+    const loadModel = () => {
+      console.log('TFLite:', TFLite);  
+      if (TFLite && TFLite.loadModel) {
+        TFLite.loadModel({
+          model: "C:/Users/reymarkoliquino/pers-app/EELANCOUNTING/eeldiseasedetector/assets/models/yolov8m_float16.tflite", // Ensure correct relative path to model in assets
+        }, (err: any, res: any) => {
+          if (err) {
+            console.error('Error loading model:', err);
+            alert('Failed to load model');
+          } else {
+            console.log('Model loaded successfully');
+            setModel(res);
+          }
+        });
+      } else {
+        console.error('TFLite not initialized');
       }
     };
-
     loadModel();
   }, []);
 
