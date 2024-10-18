@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CameraView, CameraType, useCameraPermissions, Camera } from 'expo-camera';
 import { Button, StyleSheet, Text, View, Dimensions } from 'react-native';
 import { Svg, Path, Line, Text as SvgText, Rect } from 'react-native-svg';
-import TFLite from 'react-native-tflite'; 
+import { InferenceSession, Tensor } from 'onnxruntime-react-native';
 import * as jpeg from 'jpeg-js';
 import ImageResizer from 'react-native-image-resizer';  // Import ImageResizer
 
@@ -15,34 +15,24 @@ export default function App() {
   const cameraRef = useRef<CameraView | null>(null);
   const [count, setCount] = useState<number | null>(null);
   const [predictions, setPredictions] = useState<any[]>([]);
-  const [model, setModel] = useState(null); // Holds the loaded TFLite model
+  const [model, setModel] = useState<InferenceSession | null>(null); // Holds the loaded ONNX model
   const [eelInCount, setEelInCount] = useState(0); // Counter for "in"
   const [eelOutCount, setEelOutCount] = useState(0); // Counter for "out"
   const [previousPositions, setPreviousPositions] = useState<any[]>([]); // Store previous positions of eels for movement tracking
 
-   // Load the TFLite model when the component is mounted 
+   // Load the TFLite model when the component is mounted
   useEffect(() => {
-    const loadModel = () => {
-      console.log('TFLite:', TFLite);  
-      if (TFLite && TFLite.loadModel) {
-        TFLite.loadModel({
-          model: "C:/Users/reymarkoliquino/pers-app/EELANCOUNTING/eeldiseasedetector/assets/models/yolov8m_float16.tflite", // Ensure correct relative path to model in assets
-        }, (err: any, res: any) => {
-          if (err) {
-            console.error('Error loading model:', err);
-            alert('Failed to load model');
-          } else {
-            console.log('Model loaded successfully');
-            setModel(res);
-          }
-        });
-      } else {
-        console.error('TFLite not initialized');
+    const loadModel = async () => {
+      try {
+        const session = await InferenceSession.create('C:/Users/reymarkoliquino/pers-app/EELANCOUNTING/eeldiseasedetector/assets/models/yolov8m.onnx'); // Load the ONNX model
+        setModel(session);
+        console.log('ONNX model loaded successfully');
+      } catch (error) {
+        console.error('Error loading ONNX model:', error);
       }
     };
     loadModel();
   }, []);
-
 
   // Function to process each frame in real-time
   const processFrame = async () => {
@@ -52,7 +42,7 @@ export default function App() {
         if (!photo || !photo.uri) return;
 
         // Use ImageResizer to resize the captured image to the model's input size
-        const resizeImage = await ImageResizer.createResizedImage(
+        const resizedImage = await ImageResizer.createResizedImage(
           photo.uri,     // Image URI
           640,           // New width (match model's expected input size)
           640,           // New height (match model's expected input size)
@@ -60,30 +50,35 @@ export default function App() {
           100            // Quality
         );
 
-        // Preprocess the image for TFLite
-        const response = await fetch(photo.uri);
+        // Preprocess the image
+        const response = await fetch(resizedImage.uri);
         const blob = await response.blob();
         const arrayBuffer = await blob.arrayBuffer();
         const imageData = new Uint8Array(arrayBuffer);
         const rawImageData = jpeg.decode(imageData, { useTArray: true });
 
-        // Run the model and get predictions
-        TFLite.runModel({
-          input: rawImageData.data, // raw pixel data
-          inputShape: [1, 640, 640, 3], // Modify based on your model's input shape
-        }, (err: any, res: any) => {
-          if (err) {
-            console.error('Error running model:', err);
-          } else {
-            console.log('Model results:', res); // Log the raw model results
-            const eelBoxes = extractBoundingBoxes(res); // Adjust based on actual result format
-            setPredictions(eelBoxes); // Update bounding boxes for rendering
-            setCount(eelBoxes.length); // Update the eel count
-            trackEelMovement(eelBoxes); // Track eel movement across the line
-          }
-        });
+        // Convert the raw image data into a tensor
+        const tensor = new Tensor('float32', Float32Array.from(rawImageData.data), [1, 3, 640, 640]);
+
+        // Run the ONNX model and get predictions
+        const feeds = { input: tensor };
+        const results = await model.run(feeds);
+
+        // Log the entire results object to understand its structure
+        console.log('Model output:', results);
+
+        const output = results.output.data; // Assuming the model's output key is "output"
+        
+        // Log the raw model results
+        console.log('Model results:', output);
+
+  
+        const eelBoxes = extractBoundingBoxes(output); // Adjust based on actual result format
+        setPredictions(eelBoxes); // Update bounding boxes for rendering
+        setCount(eelBoxes.length); // Update the eel count
+        trackEelMovement(eelBoxes); // Track eel movement across the line
       } catch (error) {
-        console.error('Error capturing frame:', error);
+        console.error('Error capturing or processing frame:', error);
       }
     }
   };
@@ -123,13 +118,40 @@ export default function App() {
   };
 
   // Function to extract bounding boxes from model predictions
-  const extractBoundingBoxes = (predictions: any[]) => {
-    console.log('Predictions:', predictions); // Check the structure of predictions
-    return predictions.map(prediction => {
-      const [x, y, width, height] = prediction.bbox || [0, 0, 0, 0]; // Check for bbox key
-      return { x, y, width, height, isActive: 'inactive' };
-    });
-  };
+  const extractBoundingBoxes = (output: any): any[] => {
+    // Handle different output formats based on inspection
+    if (Array.isArray(output)) {
+        console.log('Processing array output');
+        const predictions = [];
+        for (let i = 0; i < output.length; i += 5) {  // Assuming each box has 5 values
+            predictions.push({
+                x: output[i],
+                y: output[i + 1],
+                width: output[i + 2],
+                height: output[i + 3],
+                score: output[i + 4]
+            });
+        }
+        return predictions;
+    } else if (output instanceof Float32Array || output instanceof Uint8Array) {
+        console.log('Processing typed array output');
+        const predictions = [];
+        for (let i = 0; i < output.length; i += 5) {
+            predictions.push({
+                x: output[i],
+                y: output[i + 1],
+                width: output[i + 2],
+                height: output[i + 3],
+                score: output[i + 4]
+            });
+        }
+        return predictions;
+    } else {
+        console.error('Unexpected output type:', output);
+        return [];
+    }
+};
+
 
   // Function to render bounding boxes and labels over the camera feed
   const renderBoundingBoxes = () => {
