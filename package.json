@@ -57,6 +57,7 @@
     "react-native-tflite": "^0.0.2",
     "react-native-vector-icons": "^10.1.0",
     "react-native-web": "~0.19.10",
+    "tflite-react-native": "^0.0.5",
     "torchlive": "^0.0.0"
   },
   "devDependencies": {

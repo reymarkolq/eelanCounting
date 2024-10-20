@@ -2,80 +2,103 @@ import { useEffect, useRef, useState } from 'react';
 import { CameraView, CameraType, useCameraPermissions, Camera } from 'expo-camera';
 import { Button, StyleSheet, Text, View, Dimensions } from 'react-native';
 import { Svg, Path, Line, Text as SvgText, Rect } from 'react-native-svg';
-import * as tf from '@tensorflow/tfjs';
+import TFLite from 'react-native-tflite'; 
 import * as jpeg from 'jpeg-js';
-import ImageResizer from 'react-native-image-resizer';  // Import ImageResizer
+import { Asset } from 'expo-asset';
+import ImageResizer from 'react-native-image-resizer';
 
 const { width, height } = Dimensions.get('window');
 const LINE_POSITION_X = width / 2; // Vertical line at the middle of the screen
+let frameCounter = 0; // Used for frame skipping
 
 export default function App() {
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView | null>(null);
   const [count, setCount] = useState<number | null>(null);
+  const [activeEels, setActiveEels] = useState<number>(0);
+  const [inactiveEels, setInactiveEels] = useState<number>(0);
   const [predictions, setPredictions] = useState<any[]>([]);
-  const [model, setModel] = useState(null); // Holds the loaded TFLite model
-  const [eelInCount, setEelInCount] = useState(0); // Counter for "in"
-  const [eelOutCount, setEelOutCount] = useState(0); // Counter for "out"
-  const [previousPositions, setPreviousPositions] = useState<any[]>([]); // Store previous positions of eels for movement tracking
+  const [modelLoaded, setModelLoaded] = useState(false);
+  const [eelInCount, setEelInCount] = useState(0);
+  const [eelOutCount, setEelOutCount] = useState(0);
+  const [previousPositions, setPreviousPositions] = useState<any[]>([]);
 
-   // Load the TFLite model when the component is mounted
+  // Load the TensorFlow Lite model when the component is mounted
   useEffect(() => {
-  const loadModel = async () => {
-    await tf.ready();
-    const modelJson = require('./model/model.json');
-    const modelWeights = [
-      require('./model/group1-shard1of1.bin'),
-    ];
+    const loadModel = async () => {
+      try {
+        const modelAsset = Asset.fromModule(require('../../assets/models/best_float16.tflite'));
+        await modelAsset.downloadAsync();
 
-    const model = await tf.loadGraphModel(bundleResourceIO(modelJson, modelWeights));
-    console.log('Model loaded');
-  };
-
-  loadModel();
-}, []);
+        if (TFLite && TFLite.loadModel) {
+          TFLite.loadModel({
+            model: modelAsset.localUri, 
+          }, (err: any, res: any) => {
+            if (err) {
+              console.error('Error loading model:', err);
+            } else {
+              setModelLoaded(true);
+              console.log('Model loaded successfully');
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error loading TFLite model:', error);
+      }
+    };
+    loadModel();
+  }, []);
 
   // Function to process each frame in real-time
   const processFrame = async () => {
-    if (cameraRef.current && model) {
+    if (cameraRef.current && modelLoaded) {
+      frameCounter++;
+      
+      // Skip frames to reduce load (process every 5th frame)
+      if (frameCounter % 5 !== 0) return;
+
       try {
         const photo = await cameraRef.current.takePictureAsync({ skipProcessing: true });
-        if (!photo || !photo.uri) return;
 
-        // Use ImageResizer to resize the captured image to the model's input size
+        if (!photo || !photo.uri) {
+          console.error('Failed to capture photo or missing photo URI');
+          return;
+        }
+
+        // Resize the captured image to fit the model's input requirements (reduced size)
         const resizeImage = await ImageResizer.createResizedImage(
-          photo.uri,     // Image URI
-          640,           // New width (match model's expected input size)
-          640,           // New height (match model's expected input size)
-          'JPEG',        // Format
-          100            // Quality
+          photo.uri, 640, 640, 'JPEG', 100 // Reduced from 640x640 to 320x320
         );
 
-        // Preprocess the image for TFLite
-        const response = await fetch(photo.uri);
+        const response = await fetch(resizeImage.uri);
         const blob = await response.blob();
         const arrayBuffer = await blob.arrayBuffer();
         const imageData = new Uint8Array(arrayBuffer);
         const rawImageData = jpeg.decode(imageData, { useTArray: true });
 
-        // Run the model and get predictions
+        // Run the TensorFlow Lite model with the image
         TFLite.runModel({
-          input: rawImageData.data, // raw pixel data
-          inputShape: [1, 640, 640, 3], // Modify based on your model's input shape
+          input: rawImageData.data,
+          inputShape: [1, 640, 640, 3],  // Adjust input shape
         }, (err: any, res: any) => {
           if (err) {
             console.error('Error running model:', err);
           } else {
-            console.log('Model results:', res); // Log the raw model results
-            const eelBoxes = extractBoundingBoxes(res); // Adjust based on actual result format
-            setPredictions(eelBoxes); // Update bounding boxes for rendering
-            setCount(eelBoxes.length); // Update the eel count
-            trackEelMovement(eelBoxes); // Track eel movement across the line
+            const eelBoxes = extractBoundingBoxes(res);
+            setPredictions(eelBoxes);
+            setCount(eelBoxes.length);
+            trackEelMovement(eelBoxes);
+
+            // Update active and inactive eel counts
+            const activeCount = eelBoxes.filter(eel => eel.isActive === 'active').length;
+            const inactiveCount = eelBoxes.length - activeCount;
+            setActiveEels(activeCount);
+            setInactiveEels(inactiveCount);
           }
         });
       } catch (error) {
-        console.error('Error capturing frame:', error);
+        console.error('Error capturing or processing frame:', error);
       }
     }
   };
@@ -90,11 +113,11 @@ export default function App() {
 
       if (previousPosition && previousTimestamp) {
         const distance = Math.abs(eel.x - previousPosition.x);
-        const timeElapsed = (currentTimestamp - previousTimestamp) / 1000; 
-        const speed = distance / timeElapsed; 
+        const timeElapsed = (currentTimestamp - previousTimestamp) / 1000;
+        const speed = distance / timeElapsed;
 
         // Classify based on speed
-        if (speed > 0.60 && speed <= 0.90) { 
+        if (speed > 0.60 && speed <= 0.90) {
           eel.isActive = 'active';
         } else {
           eel.isActive = 'inactive';
@@ -114,19 +137,18 @@ export default function App() {
     setPreviousTimestamps(Array(eelBoxes.length).fill(Date.now()));
   };
 
-  // Function to extract bounding boxes from model predictions
+  // Extract bounding boxes from model predictions
   const extractBoundingBoxes = (predictions: any[]) => {
-    console.log('Predictions:', predictions); // Check the structure of predictions
     return predictions.map(prediction => {
-      const [x, y, width, height] = prediction.bbox || [0, 0, 0, 0]; // Check for bbox key
+      const [x, y, width, height] = prediction.bbox || [0, 0, 0, 0];
       return { x, y, width, height, isActive: 'inactive' };
     });
   };
 
-  // Function to render bounding boxes and labels over the camera feed
+  // Render bounding boxes
   const renderBoundingBoxes = () => {
     return predictions.map((prediction, index) => {
-      const boxColor = prediction.isActive === 'active' ? 'green' : 'red'; // Green for active eels, Red for inactive eels
+      const boxColor = prediction.isActive === 'active' ? 'green' : 'red';
       return (
         <Svg key={index}>
           <Path
@@ -136,14 +158,8 @@ export default function App() {
             stroke={boxColor}
             strokeWidth={2}
           />
-          <SvgText
-            x={prediction.x}
-            y={prediction.y - 5}
-            fill="yellow"
-            fontSize="12"
-            fontWeight="bold"
-          >
-            Eel ${prediction.isActive ? 'Active' : 'Inactive'}
+          <SvgText x={prediction.x} y={prediction.y - 5} fill="yellow" fontSize="12" fontWeight="bold">
+            {`Eel ${prediction.isActive ? 'Active' : 'Inactive'}`}
           </SvgText>
         </Svg>
       );
@@ -152,7 +168,7 @@ export default function App() {
 
   // Start real-time processing when the camera is ready
   const handleCameraReady = async () => {
-    setInterval(() => processFrame(), 500); // Run every 500ms
+    setInterval(() => processFrame(), 500);
   };
 
   if (!permission) {
@@ -173,10 +189,7 @@ export default function App() {
       <CameraView style={styles.camera} facing={facing} ref={cameraRef} onCameraReady={handleCameraReady}>
         <Svg style={styles.canvas}>
           {predictions && renderBoundingBoxes()}
-          {/* Vertical line */}
           <Line x1={LINE_POSITION_X} y1="0" x2={LINE_POSITION_X} y2={height} stroke="white" strokeWidth="2" />
-
-          {/* In/Out Counter in the middle of the vertical line */}
           <Rect x={LINE_POSITION_X - 40} y={height / 2 - 30} width="80" height="60" fill="white" />
           <SvgText x={LINE_POSITION_X - 35} y={height / 2 - 10} fill="black" fontSize="18" fontWeight="bold">
             {`In: ${eelInCount}`}
@@ -185,8 +198,12 @@ export default function App() {
             {`Out: ${eelOutCount}`}
           </SvgText>
         </Svg>
-        <View style={styles.countContainer}>
-          <Text style={styles.countText}>Eel Count: {count !== null ? count : 'Detecting...'}</Text>
+
+        {/* Eel counts on the left side */}
+        <View style={styles.countsContainer}>
+          <Text style={styles.countText}>Total Eels: {count !== null ? count : 'Detecting...'}</Text>
+          <Text style={[styles.countText, { color: 'green' }]}>Active Eels: {activeEels}</Text>
+          <Text style={[styles.countText, { color: 'red' }]}>Inactive Eels: {inactiveEels}</Text>
         </View>
       </CameraView>
     </View>
@@ -212,12 +229,10 @@ const styles = StyleSheet.create({
     width: width,
     height: height,
   },
-  countContainer: {
+  countsContainer: {
     position: 'absolute',
     top: 50,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
+    left: 10, // Positioned on the left side of the screen
   },
   countText: {
     fontSize: 24,
@@ -225,8 +240,3 @@ const styles = StyleSheet.create({
     color: 'white',
   },
 });
-
-function bundleResourceIO(modelJson: any, modelWeights: any[]): string | tf.io.IOHandler {
-  throw new Error('Function not implemented.');
-}
-
